@@ -12,6 +12,12 @@ type tape struct {
 	Source string
 	Tape   [30000]byte
 	Cursor int
+	Loops  []loopPair
+}
+
+type loopPair struct {
+	Open  int
+	Close int
 }
 
 func (t *tape) incCursor() {
@@ -46,7 +52,8 @@ func (t *tape) process() {
 	v := src[0]
 
 	for {
-		fmt.Println(i, string(v))
+		fmt.Println(i+1, t.Cursor, t.Tape[:10])
+		v = src[i]
 		switch rune(v) {
 		case '>':
 			t.incCursor()
@@ -61,20 +68,21 @@ func (t *tape) process() {
 		case ',':
 			t.scanVal()
 		case '[':
-			if t.Tape[t.Cursor] == 0 {
-				i = strings.Index(t.Source[i:], string(']')) + 1
+			if t.Tape[t.Cursor] == byte(0) {
+				i = i + strings.Index(t.Source[i:], string(']')) + 1
+				continue
 			}
 		case ']':
-			if t.Tape[t.Cursor] != 0 {
-				i = strings.LastIndex(t.Source[:i], string('['))
-			}
+			//if t.Tape[t.Cursor] != 0 {
+			i = strings.LastIndex(t.Source[:i], string('['))
+			continue
+			//}
 		}
 
 		if i+1 == len(src) {
 			break
 		}
 		i++
-		v = src[i]
 
 	}
 }
@@ -85,5 +93,20 @@ func main() {
 
 	tape := tape{}
 	tape.Source = source
+
+	stack := []int{}
+	result := []loopPair{}
+
+	for i, v := range source {
+		if v == '[' {
+			stack = append([]int{i}, stack...)
+		} else if v == ']' {
+			result = append(result, loopPair{stack[0], i})
+			stack = stack[1:]
+		}
+	}
+
+	tape.Loops = result
+
 	tape.process()
 }
