@@ -5,19 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 )
 
 type tape struct {
 	Source string
 	Tape   [30000]byte
 	Cursor int
-	Loops  []loopPair
-}
-
-type loopPair struct {
-	Open  int
-	Close int
+	OpenLoops map[int]int
+	CloseLoops map[int]int
 }
 
 func (t *tape) incCursor() {
@@ -52,7 +47,6 @@ func (t *tape) process() {
 	v := src[0]
 
 	for {
-		fmt.Println(i+1, t.Cursor, t.Tape[:10])
 		v = src[i]
 		switch rune(v) {
 		case '>':
@@ -69,16 +63,13 @@ func (t *tape) process() {
 			t.scanVal()
 		case '[':
 			if t.Tape[t.Cursor] == byte(0) {
-				i = i + strings.Index(t.Source[i:], string(']')) + 1
+				i = t.OpenLoops[i] + 1
 				continue
 			}
 		case ']':
-			//if t.Tape[t.Cursor] != 0 {
-			i = strings.LastIndex(t.Source[:i], string('['))
+			i = t.CloseLoops[i]
 			continue
-			//}
 		}
-
 		if i+1 == len(src) {
 			break
 		}
@@ -95,18 +86,23 @@ func main() {
 	tape.Source = source
 
 	stack := []int{}
-	result := []loopPair{}
 
+	openLoops := make(map[int]int)
+	closeLoops := make(map[int]int)
 	for i, v := range source {
 		if v == '[' {
 			stack = append([]int{i}, stack...)
 		} else if v == ']' {
-			result = append(result, loopPair{stack[0], i})
+
+			openLoops[stack[0]] = i
+			closeLoops[i] = stack[0]
+
 			stack = stack[1:]
 		}
 	}
 
-	tape.Loops = result
+	tape.OpenLoops = openLoops
+	tape.CloseLoops = closeLoops
 
 	tape.process()
 }
